@@ -347,6 +347,29 @@ async function loadDefaultImage() {
     }
 }
 
+// Add new function to save to KV store
+async function saveToKVStore(paletteData) {
+    try {
+        const response = await fetch('/api/palettes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(paletteData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save palette');
+        }
+        
+        const result = await response.json();
+        return result.id; // Assuming the API returns an ID for the saved palette
+    } catch (error) {
+        console.error('Error saving to KV store:', error);
+        throw error;
+    }
+}
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     loadStateFromLocalStorage();
@@ -387,7 +410,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const paletteName = document.getElementById('paletteName').value || 'My Color Palette';
         const procreateData = createProcreateJson(colors, paletteName);
-        await downloadSwatchFile(procreateData, paletteName.toLowerCase().replace(/\s+/g, '_'));
+        
+        try {
+            // Save to KV store
+            await saveToKVStore({
+                name: paletteName,
+                colors: procreateData,
+                createdAt: new Date().toISOString()
+            });
+            showToast('Palette saved successfully!');
+            
+            // Continue with the download
+            await downloadSwatchFile(procreateData, paletteName.toLowerCase().replace(/\s+/g, '_'));
+        } catch (error) {
+            showToast('Failed to save palette');
+            console.error('Error during export:', error);
+        }
     });
 
     document.getElementById('clearImage').addEventListener('click', () => {
@@ -397,7 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('colorStrip').innerHTML = '';
         
         document.getElementById('colorAlgorithm').value = 'dominant';
-        document.getElementById('numColors').value = '5';
+        document.getElementById('numColors').value = '30';
         document.getElementById('paletteName').value = 'My Color Palette';
         document.getElementById('saturationValue').value = '100';
         
