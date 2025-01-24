@@ -64,7 +64,7 @@ body {
 }
 
 .button {
-    background-color: #4CAF50;
+    background-color: black;
     border: none;
     color: white;
     padding: 15px 32px;
@@ -78,11 +78,11 @@ body {
 }
 
 .button-secondary {
-    background-color: #dc3545;
+    background-color: black;
 }
 
 .button-secondary:hover {
-    background-color: #c82333;
+    background-color: #333;
 }
 
 #clearImage {
@@ -182,7 +182,7 @@ input[type="file"] {
 }
 
 input[type="file"]::-webkit-file-upload-button {
-    background-color: #4CAF50;
+    background-color: #000000;
     color: white;
     padding: 0.5rem 1rem;
     border: none;
@@ -194,7 +194,7 @@ input[type="file"]::-webkit-file-upload-button {
 }
 
 input[type="file"]::-webkit-file-upload-button:hover {
-    background-color: #45a049;
+    background-color: #000000;
 }
 
 select {
@@ -240,7 +240,7 @@ input[type="text"]:focus,
 input[type="number"]:focus,
 select:focus {
     outline: none;
-    border-color: #4CAF50;
+    border-color: #000000;
     box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
@@ -304,4 +304,36 @@ h1 {
 
 .social-icon:hover {
     color: #333;
+}
+
+.toast {
+    visibility: hidden;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 16px;
+    border-radius: 4px;
+    z-index: 1000;
+}
+
+.toast.show {
+    visibility: visible;
+    animation: fadeIn 0.5s, fadeOut 0.5s 2s;
+}
+
+@keyframes fadeIn {
+    from {opacity: 0;}
+    to {opacity: 1;}
+}
+
+@keyframes fadeOut {
+    from {opacity: 1;}
+    to {opacity: 0;}
+}
+
+.color-palette .color-block {
+    cursor: pointer;
 } 

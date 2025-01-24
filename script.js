@@ -194,26 +194,8 @@ function displayColors(colors) {
         colorInfo.innerHTML = `<div>${color}</div>`;
         
         // Add click handler for copying
-        colorBox.addEventListener('click', async () => {
-            try {
-                await navigator.clipboard.writeText(color);
-                
-                // Create and show toast
-                const toast = document.createElement('div');
-                toast.className = 'toast';
-                toast.textContent = `Copied ${color}`;
-                document.body.appendChild(toast);
-                
-                // Remove toast after animation
-                setTimeout(() => {
-                    toast.classList.add('fade-out');
-                    setTimeout(() => {
-                        document.body.removeChild(toast);
-                    }, 300); // Match this with CSS animation duration
-                }, 2000);
-            } catch (err) {
-                console.error('Failed to copy:', err);
-            }
+        colorBox.addEventListener('click', () => {
+            copyToClipboard(color);
         });
         
         colorBox.appendChild(colorInfo);
@@ -303,6 +285,46 @@ function createProcreateJson(colors, paletteName) {
             "alpha": 1
         }))
     };
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2500);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast(`Copied ${text} to clipboard!`);
+    }).catch(err => {
+        showToast('Failed to copy color code');
+        console.error('Failed to copy:', err);
+    });
+}
+
+// Add this function to load the default image
+async function loadDefaultImage() {
+    try {
+        const response = await fetch('monet.png');
+        const blob = await response.blob();
+        const file = new File([blob], 'monet.png', { type: 'image/png' });
+        
+        // Handle the image as if it was uploaded
+        handleImageUpload(file);
+        
+        // Save to localStorage
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            localStorage.setItem('savedImage', e.target.result);
+        };
+        reader.readAsDataURL(file);
+    } catch (error) {
+        console.error('Error loading default image:', error);
+    }
 }
 
 // Event Listeners
@@ -397,4 +419,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Check for saved image, if none exists, load default
+    const savedImage = localStorage.getItem('savedImage');
+    if (!savedImage) {
+        loadDefaultImage();
+    }
 }); 
