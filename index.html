@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Palette Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <h1>Color Palette Generator</h1>
+    
+    <div class="input-section">
+        <div class="input-group">
+            <label for="imageInput">Upload Image</label>
+            <input type="file" id="imageInput" accept="image/*">
+        </div>
+        
+        <div class="input-row">
+            <div class="input-group">
+                <label for="colorAlgorithm">Color Selection Method</label>
+                <select id="colorAlgorithm">
+                    <option value="dominant">Dominant Colors</option>
+                    <option value="vibrant">Vibrant Colors</option>
+                    <option value="muted">Muted Colors</option>
+                    <option value="balanced">Balanced Distribution</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="numColors">Number of colors</label>
+                <input type="number" id="numColors" value="5" min="1" max="30">
+            </div>
+        </div>
+        
+        <div class="input-row">
+            <div class="input-group">
+                <label for="paletteName">Palette Name</label>
+                <input type="text" id="paletteName" value="My Color Palette">
+            </div>
+            
+            <div class="input-group">
+                <label for="saturationValue">Image Saturation (%)</label>
+                <input type="number" id="saturationValue" value="100" min="0" max="200" step="5">
+            </div>
+        </div>
+    </div>
+
+    <div class="image-container">
+        <img id="imagePreview">
+    </div>
+
+    <div class="color-strip-container">
+        <div class="color-strip" id="colorStrip"></div>
+    </div>
+
+    <div class="content-divider"></div>
+
+    <div id="colorPalette" class="color-palette"></div>
+
+    <div class="bottom-actions">
+        <button id="exportProcreate" class="button">Export for Procreate</button>
+        <button id="clearImage" class="button button-secondary">Clear Image</button>
+    </div>
+
+    <footer class="footer">
+        <div class="social-icons">
+            <a href="https://twitter.com/generatecoll" target="_blank" class="social-icon">
+                <i class="fa-brands fa-x-twitter"></i>
+            </a>
+            <a href="https://instagram.com/generate.collective" target="_blank" class="social-icon">
+                <i class="fa-brands fa-instagram"></i>
+            </a>
+
+            <a href="https://tumblr.com/generatecoll" target="_blank" class="social-icon">
+                <i class="fa-brands fa-tumblr"></i>
+            </a>
+
+            <a href="https://cbayes.com" target="_blank" class="social-icon">
+                <i class="fa-solid fa-house"></i>
+            </a>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
