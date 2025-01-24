@@ -275,15 +275,27 @@ function updateClearButtonVisibility() {
     const state = localStorage.getItem('paletteGeneratorState');
     clearButton.style.display = state ? 'inline-block' : 'none';
 }
+
 function createProcreateJson(colors, paletteName) {
     return {
         "name": paletteName,
-        "swatches": colors.map(color => ({
-            "red": parseInt(color.slice(1, 3), 16) / 255,
-            "green": parseInt(color.slice(3, 5), 16) / 255,
-            "blue": parseInt(color.slice(5, 7), 16) / 255,
-            "alpha": 1
-        }))
+        "swatches": colors.map(color => {
+            // Convert hex to RGB
+            const r = parseInt(color.slice(1, 3), 16);
+            const g = parseInt(color.slice(3, 5), 16);
+            const b = parseInt(color.slice(5, 7), 16);
+            
+            // Convert RGB to HSV
+            const hsv = rgbToHsv(r, g, b);
+            
+            return {
+                "hue": hsv.h,
+                "saturation": hsv.s,
+                "brightness": hsv.v,
+                "alpha": 1,
+                "colorSpace": 0
+            };
+        })
     };
 }
 
