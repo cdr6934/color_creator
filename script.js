@@ -313,15 +313,23 @@ async function loadDefaultImage() {
         const blob = await response.blob();
         const file = new File([blob], 'monet.png', { type: 'image/png' });
         
-        // Handle the image as if it was uploaded
-        handleImageUpload(file);
+        // Use existing image handling logic
+        const image = document.getElementById('imagePreview');
+        image.src = URL.createObjectURL(file);
         
         // Save to localStorage
         const reader = new FileReader();
-        reader.onload = function(e) {
-            localStorage.setItem('savedImage', e.target.result);
+        reader.onload = async function(e) {
+            await saveStateToLocalStorage(e.target.result);
         };
         reader.readAsDataURL(file);
+        
+        image.onload = async () => {
+            originalImage = image;
+            const numColors = parseInt(document.getElementById('numColors').value);
+            const colors = await getDominantColors(image, numColors);
+            displayColors(colors);
+        }; 
     } catch (error) {
         console.error('Error loading default image:', error);
     }
