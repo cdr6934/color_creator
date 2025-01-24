@@ -176,6 +176,10 @@ async function getDominantColors(image, numColors) {
 function displayColors(colors) {
     const palette = document.getElementById('colorPalette');
     const strip = document.getElementById('colorStrip');
+    const exportButton = document.getElementById('exportProcreate');
+    
+    // Show export button when colors are displayed
+    exportButton.style.display = 'inline-block';
     
     palette.innerHTML = '';
     strip.innerHTML = '';
@@ -188,6 +192,29 @@ function displayColors(colors) {
         const colorInfo = document.createElement('div');
         colorInfo.className = 'color-info';
         colorInfo.innerHTML = `<div>${color}</div>`;
+        
+        // Add click handler for copying
+        colorBox.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(color);
+                
+                // Create and show toast
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = `Copied ${color}`;
+                document.body.appendChild(toast);
+                
+                // Remove toast after animation
+                setTimeout(() => {
+                    toast.classList.add('fade-out');
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300); // Match this with CSS animation duration
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        });
         
         colorBox.appendChild(colorInfo);
         palette.appendChild(colorBox);
@@ -266,10 +293,24 @@ function updateClearButtonVisibility() {
     const state = localStorage.getItem('paletteGeneratorState');
     clearButton.style.display = state ? 'inline-block' : 'none';
 }
+function createProcreateJson(colors, paletteName) {
+    return {
+        "name": paletteName,
+        "swatches": colors.map(color => ({
+            "red": parseInt(color.slice(1, 3), 16) / 255,
+            "green": parseInt(color.slice(3, 5), 16) / 255,
+            "blue": parseInt(color.slice(5, 7), 16) / 255,
+            "alpha": 1
+        }))
+    };
+}
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     loadStateFromLocalStorage();
+    
+    // Hide export button initially
+    document.getElementById('exportProcreate').style.display = 'none';
 
     document.getElementById('exportProcreate').addEventListener('click', async () => {
         const palette = document.getElementById('colorPalette');
@@ -318,6 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('paletteName').value = 'My Color Palette';
         document.getElementById('saturationValue').value = '100';
         
+        document.getElementById('exportProcreate').style.display = 'none';
         updateClearButtonVisibility();
     });
 
