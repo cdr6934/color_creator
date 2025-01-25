@@ -2,77 +2,56 @@
 let originalImage = null;
 
 function toHex(value) {
-    // Ensure value is within 0-255 range
-    value = Math.min(255, Math.max(0, value));
-    return value.toString(16).padStart(2, "0").toUpperCase();
+    // Use chroma to handle the conversion and formatting
+    return chroma(value, 0, 0).hex().slice(1, 3).toUpperCase();
 }
 
 function rgbToHex(r, g, b) {
-    // Ensure all values are numbers and in valid range
-    r = Math.min(255, Math.max(0, parseInt(r) || 0));
-    g = Math.min(255, Math.max(0, parseInt(g) || 0));
-    b = Math.min(255, Math.max(0, parseInt(b) || 0));
-    
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    // Use chroma's built-in RGB to hex conversion
+    return chroma(r, g, b).hex().toUpperCase();
 }
 
 function getComplementary(hex) {
-    hex = hex.replace("#", "");
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-    const compR = 255 - r;
-    const compG = 255 - g;
-    const compB = 255 - b;
-    return `#${toHex(compR)}${toHex(compG)}${toHex(compB)}`;
+    // Use chroma.js to handle color operations
+    const color = chroma(hex);
+    // Rotate hue by 180 degrees to get complementary color
+    const complementary = color.set('hsl.h', (color.get('hsl.h') + 180) % 360);
+    return complementary.hex().toUpperCase();
 }
 
 function rgbToHsv(r, g, b) {
-    r /= 255;
-    g /= 255;
-    b /= 255;
-
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const diff = max - min;
-
-    let h = 0;
-    let s = max === 0 ? 0 : diff / max;
-    let v = max;
-
-    if (diff !== 0) {
-        switch (max) {
-            case r:
-                h = (g - b) / diff + (g < b ? 6 : 0);
-                break;
-            case g:
-                h = (b - r) / diff + 2;
-                break;
-            case b:
-                h = (r - g) / diff + 4;
-                break;
-        }
-        h /= 6;
-    }
-
-    return { h, s, v };
+    // Use chroma.js for RGB to HSV conversion
+    const color = chroma(r, g, b);
+    const [h, s, v] = color.hsv();
+    return { h: h/360, s, v }; // Normalize h to 0-1 range to match existing code
 }
 
 function getColorScore(hsv, method) {
+    // Convert HSV to chroma color object (note: hsv.h is in 0-1 range, needs to be 0-360)
+    const color = chroma.hsv(hsv.h * 360, hsv.s, hsv.v);
+    
     switch (method) {
         case 'vibrant':
-            return hsv.s * hsv.v;
+            // Emphasize high saturation and brightness more strongly
+            // Square the values to make the difference more pronounced
+            const saturation = color.get('hsl.s');
+            const luminance = color.luminance();
+            return Math.pow(saturation, 2) * Math.pow(luminance, 2) * 2;
         case 'muted':
-            return (1 - Math.abs(hsv.s - 0.5)) * hsv.v;
+            // Medium saturation, any brightness
+            const saturationDiff = Math.abs(color.get('hsl.s') - 0.5);
+            return (1 - saturationDiff) * color.luminance();
         case 'balanced':
-            return hsv.s * hsv.v * (1 - Math.abs(0.5 - (hsv.h % 1)));
+            // Consider hue spacing, saturation, and luminance
+            const hueDiff = Math.abs(0.5 - ((color.get('hsl.h') / 360) % 1));
+            return color.get('lch.c') * color.luminance() * (1 - hueDiff);
         default: // dominant
             return 1;
     }
 }
 
 function adjustSaturation(canvas, saturation) {
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
     
@@ -91,86 +70,144 @@ function adjustSaturation(canvas, saturation) {
 }
 
 function hsvToRgb(h, s, v) {
-    let r, g, b;
-    const i = Math.floor(h * 6);
-    const f = h * 6 - i;
-    const p = v * (1 - s);
-    const q = v * (1 - f * s);
-    const t = v * (1 - (1 - f) * s);
-
-    switch (i % 6) {
-        case 0: r = v; g = t; b = p; break;
-        case 1: r = q; g = v; b = p; break;
-        case 2: r = p; g = v; b = t; break;
-        case 3: r = p; g = q; b = v; break;
-        case 4: r = t; g = p; b = v; break;
-        case 5: r = v; g = p; b = q; break;
-    }
-
+    // Use chroma.js for HSV to RGB conversion
+    const color = chroma.hsv(h * 360, s, v); // Multiply h by 360 since chroma expects 0-360
+    const [r, g, b] = color.rgb();
     return {
-        r: Math.round(r * 255),
-        g: Math.round(g * 255),
-        b: Math.round(b * 255)
+        r: Math.round(r),
+        g: Math.round(g),
+        b: Math.round(b)
     };
 }
 
+// Add these helper functions near the top of your file
+function showLoading() {
+    const modal = document.getElementById('loadingModal');
+    modal.style.display = 'flex';
+}
+
+function hideLoading() {
+    const modal = document.getElementById('loadingModal');
+    modal.style.display = 'none';
+}
+
+// Modify getDominantColors to use the loading modal
 async function getDominantColors(image, numColors) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    canvas.width = image.width;
-    canvas.height = image.height;
-    ctx.drawImage(image, 0, 0);
-    
-    const saturation = parseInt(document.getElementById('saturationValue').value);
-    adjustSaturation(canvas, saturation);
-    
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    const colorMap = new Map();
-    
-    const stride = Math.max(1, Math.floor((imageData.length / 4) / 10000));
-    const method = document.getElementById('colorAlgorithm').value;
-    
-    for (let i = 0; i < imageData.length; i += stride * 4) {
-        const r = imageData[i];
-        const g = imageData[i + 1];
-        const b = imageData[i + 2];
+    try {
+        showLoading();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
-        const quantizedR = Math.round(r / 32) * 32;
-        const quantizedG = Math.round(g / 32) * 32;
-        const quantizedB = Math.round(b / 32) * 32;
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
         
-        const colorKey = `${quantizedR},${quantizedG},${quantizedB}`;
-        colorMap.set(colorKey, (colorMap.get(colorKey) || 0) + 1);
+        const saturation = parseInt(document.getElementById('saturationValue').value);
+        adjustSaturation(canvas, saturation);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const colorMap = new Map();
+        
+        // Reduce stride for more color samples
+        const stride = Math.max(1, Math.floor((imageData.length / 4) / 20000));
+        const method = document.getElementById('colorAlgorithm').value;
+        
+        for (let i = 0; i < imageData.length; i += stride * 4) {
+            const r = imageData[i];
+            const g = imageData[i + 1];
+            const b = imageData[i + 2];
+            
+            // Use finer quantization for more color variety
+            const color = chroma(r, g, b);
+            const lab = color.lab();
+            // Reduce quantization step from 10 to 5 for more color variety
+            const quantizedLab = lab.map(v => Math.round(v / 5) * 5);
+            const quantizedColor = chroma.lab(...quantizedLab);
+            
+            const colorKey = quantizedColor.hex();
+            colorMap.set(colorKey, (colorMap.get(colorKey) || 0) + 1);
+        }
+        
+        const colorArray = Array.from(colorMap.entries())
+            .map(([colorHex, count]) => {
+                const color = chroma(colorHex);
+                const hsv = color.hsv();
+                return {
+                    color: colorHex.toUpperCase(),
+                    count,
+                    hsv: { h: hsv[0]/360, s: hsv[1], v: hsv[2] }, // Normalize h to 0-1
+                    score: getColorScore({ h: hsv[0]/360, s: hsv[1], v: hsv[2] }, method) * count
+                };
+            });
+
+        // Modified selection process
+        const selectedColors = [];
+        const candidates = colorArray.sort((a, b) => b.score - a.score);
+        
+        // Add the first color (highest score)
+        if (candidates.length > 0) {
+            selectedColors.push(candidates[0]);
+        }
+        
+        // Select remaining colors based on maximum difference
+        while (selectedColors.length < numColors && candidates.length > 0) {
+            let maxMinDistance = -1;
+            let bestCandidateIndex = -1;
+            
+            // For each remaining candidate
+            for (let i = 0; i < candidates.length; i++) {
+                const candidate = candidates[i];
+                // Find minimum distance to any selected color
+                let minDistance = Infinity;
+                
+                for (const selected of selectedColors) {
+                    const distance = calculateColorDistance(candidate.color, selected.color);
+                    minDistance = Math.min(minDistance, distance);
+                }
+                
+                // If this candidate has a larger minimum distance, it's more distinct
+                if (minDistance > maxMinDistance) {
+                    maxMinDistance = minDistance;
+                    bestCandidateIndex = i;
+                }
+            }
+            
+            if (bestCandidateIndex !== -1) {
+                selectedColors.push(candidates[bestCandidateIndex]);
+                candidates.splice(bestCandidateIndex, 1);
+            } else {
+                break;
+            }
+        }
+
+        return selectedColors
+            .sort((a, b) => {
+                if (Math.abs(a.hsv.h - b.hsv.h) > 0.01) {
+                    return a.hsv.h - b.hsv.h;
+                }
+                if (Math.abs(a.hsv.s - b.hsv.s) > 0.01) {
+                    return b.hsv.s - a.hsv.s;
+                }
+                return b.hsv.v - a.hsv.v;
+            })
+            .map(item => item.color);
+    } finally {
+        hideLoading();
     }
+}
+
+// Add this helper function to calculate color distance
+function calculateColorDistance(color1, color2) {
+    // Convert hex to Lab colors using chroma.js
+    const lab1 = chroma(color1).lab();
+    const lab2 = chroma(color2).lab();
     
-    const colorArray = Array.from(colorMap.entries())
-        .map(([color, count]) => {
-            const [r, g, b] = color.split(',').map(Number);
-            const hsv = rgbToHsv(r, g, b);
-            return {
-                color: rgbToHex(r, g, b),
-                count,
-                hsv,
-                score: getColorScore(hsv, method) * count
-            };
-        });
-
-    const selectedColors = colorArray
-        .sort((a, b) => b.score - a.score)
-        .slice(0, numColors);
-
-    return selectedColors
-        .sort((a, b) => {
-            if (Math.abs(a.hsv.h - b.hsv.h) > 0.01) {
-                return a.hsv.h - b.hsv.h;
-            }
-            if (Math.abs(a.hsv.s - b.hsv.s) > 0.01) {
-                return b.hsv.s - a.hsv.s;
-            }
-            return b.hsv.v - a.hsv.v;
-        })
-        .map(item => item.color);
+    // Calculate Euclidean distance in Lab color space
+    const deltaL = lab1[0] - lab2[0];
+    const deltaA = lab1[1] - lab2[1];
+    const deltaB = lab1[2] - lab2[2];
+    
+    return Math.sqrt(deltaL * deltaL + deltaA * deltaA + deltaB * deltaB);
 }
 
 function displayColors(colors) {
@@ -187,25 +224,33 @@ function displayColors(colors) {
     colors.forEach(color => {
         const colorBox = document.createElement('div');
         colorBox.className = 'color-box';
-        colorBox.style.backgroundColor = color;
+        // Ensure color is properly formatted and applied
+        const validColor = color.startsWith('#') ? color : `#${color}`;
+        colorBox.style.backgroundColor = validColor;
         
         const colorInfo = document.createElement('div');
         colorInfo.className = 'color-info';
-        colorInfo.innerHTML = `<div>${color}</div>`;
+        // Display the color hex code
+        colorInfo.innerHTML = `<div>${validColor.toUpperCase()}</div>`;
         
         // Add click handler for copying
         colorBox.addEventListener('click', () => {
-            copyToClipboard(color);
+            copyToClipboard(validColor);
         });
         
         colorBox.appendChild(colorInfo);
         palette.appendChild(colorBox);
         
+        // Also ensure strip segments use valid color format
         const stripSegment = document.createElement('div');
         stripSegment.className = 'color-strip-segment';
-        stripSegment.style.backgroundColor = color;
+        stripSegment.style.backgroundColor = validColor;
         strip.appendChild(stripSegment);
     });
+    
+    // Ensure the palette and strip are visible
+    palette.style.display = 'flex';
+    strip.style.display = 'flex';
 }
 
 async function downloadSwatchFile(data, filename) {
@@ -230,19 +275,83 @@ async function downloadSwatchFile(data, filename) {
     URL.revokeObjectURL(url);
 }
 
+// Add this new function to resize images
+async function resizeImage(imageData, maxWidth = 800) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = imageData;
+        
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            // Calculate new dimensions maintaining aspect ratio
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw and compress image
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Get compressed image data
+            const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(compressedImage);
+        };
+    });
+}
+
 function saveStateToLocalStorage(imageData = null) {
-    const state = {
-        image: imageData || localStorage.getItem('savedImage'),
-        imageName: document.getElementById('imageInput').value.split('\\').pop() || localStorage.getItem('savedImageName'),
-        colorAlgorithm: document.getElementById('colorAlgorithm').value,
-        numColors: document.getElementById('numColors').value,
-        paletteName: document.getElementById('paletteName').value,
-        saturation: document.getElementById('saturationValue').value,
-        lastUpdated: new Date().toISOString()
-    };
-    
-    localStorage.setItem('paletteGeneratorState', JSON.stringify(state));
-    updateClearButtonVisibility();
+    try {
+        const saveState = async () => {
+            let processedImage = imageData;
+            
+            if (imageData) {
+                // Resize image if it's new
+                processedImage = await resizeImage(imageData);
+            }
+            
+            const state = {
+                image: processedImage || localStorage.getItem('savedImage'),
+                imageName: document.getElementById('imageInput').value.split('\\').pop() || localStorage.getItem('savedImageName'),
+                colorAlgorithm: document.getElementById('colorAlgorithm').value,
+                numColors: document.getElementById('numColors').value,
+                paletteName: document.getElementById('paletteName').value,
+                saturation: document.getElementById('saturationValue').value,
+                brightness: document.getElementById('brightnessValue').value,
+                lastUpdated: new Date().toISOString()
+            };
+            
+            try {
+                localStorage.setItem('paletteGeneratorState', JSON.stringify(state));
+                updateClearButtonVisibility();
+            } catch (storageError) {
+                if (storageError.name === 'QuotaExceededError') {
+                    console.warn('localStorage quota exceeded, clearing storage and trying again');
+                    localStorage.clear();
+                    localStorage.setItem('paletteGeneratorState', JSON.stringify(state));
+                    updateClearButtonVisibility();
+                } else {
+                    throw storageError;
+                }
+            }
+        };
+
+        // Execute the async function
+        saveState().catch(e => {
+            console.error('Error saving state:', e);
+            showToast('Unable to save state to browser storage');
+        });
+    } catch (e) {
+        console.error('Error in saveStateToLocalStorage:', e);
+        showToast('Unable to save state to browser storage');
+    }
 }
 
 function loadStateFromLocalStorage() {
@@ -261,6 +370,7 @@ function loadStateFromLocalStorage() {
             document.getElementById('numColors').value = state.numColors;
             document.getElementById('paletteName').value = state.paletteName;
             document.getElementById('saturationValue').value = state.saturation;
+            document.getElementById('brightnessValue').value = state.brightness;
             
             const colors = await getDominantColors(image, parseInt(state.numColors));
             displayColors(colors);
@@ -400,6 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('numColors').value = '30';
         document.getElementById('paletteName').value = 'My Color Palette';
         document.getElementById('saturationValue').value = '100';
+        document.getElementById('brightnessValue').value = '100';
         
         document.getElementById('exportProcreate').style.display = 'none';
         updateClearButtonVisibility();
@@ -408,34 +519,45 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('imageInput').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const image = document.getElementById('imagePreview');
-            image.src = URL.createObjectURL(file);
-            
             try {
-                const reader = new FileReader();
-                reader.onload = async function(event) {
-                    await saveStateToLocalStorage(event.target.result);
+                showLoading();
+                const image = document.getElementById('imagePreview');
+                image.src = URL.createObjectURL(file);
+                
+                try {
+                    const reader = new FileReader();
+                    reader.onload = async function(event) {
+                        await saveStateToLocalStorage(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                } catch (e) {
+                    console.error('Failed to save state to localStorage:', e);
+                }
+                
+                image.onload = async () => {
+                    originalImage = image;
+                    const numColors = parseInt(document.getElementById('numColors').value);
+                    const colors = await getDominantColors(image, numColors);
+                    displayColors(colors);
                 };
-                reader.readAsDataURL(file);
-            } catch (e) {
-                console.error('Failed to save state to localStorage:', e);
+            } finally {
+                hideLoading();
             }
-            
-            image.onload = async () => {
-                originalImage = image;
-                const numColors = parseInt(document.getElementById('numColors').value);
-                const colors = await getDominantColors(image, numColors);
-                displayColors(colors);
-            };
         }
     });
 
-    ['colorAlgorithm', 'numColors', 'paletteName', 'saturationValue'].forEach(id => {
-        document.getElementById(id).addEventListener('change', () => {
-            saveStateToLocalStorage();
-            if (originalImage) {
-                const numColors = parseInt(document.getElementById('numColors').value);
-                getDominantColors(originalImage, numColors).then(displayColors);
+    ['colorAlgorithm', 'numColors', 'paletteName', 'saturationValue', 'brightnessValue'].forEach(id => {
+        document.getElementById(id).addEventListener('change', async () => {
+            try {
+                showLoading();
+                saveStateToLocalStorage();
+                if (originalImage) {
+                    const numColors = parseInt(document.getElementById('numColors').value);
+                    const colors = await getDominantColors(originalImage, numColors);
+                    displayColors(colors);
+                }
+            } finally {
+                hideLoading();
             }
         });
     });
@@ -446,3 +568,42 @@ document.addEventListener('DOMContentLoaded', () => {
         loadDefaultImage();
     }
 }); 
+
+function processImage(image) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = image.width;
+    canvas.height = image.height;
+
+    // Get saturation and brightness values
+    const saturation = document.getElementById('saturationValue').value / 100;
+    const brightness = document.getElementById('brightnessValue').value / 100;
+
+    // Draw original image
+    ctx.drawImage(image, 0, 0);
+    
+    // Get image data
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Adjust saturation and brightness
+    for (let i = 0; i < data.length; i += 4) {
+        const hsv = chroma.rgb(data[i], data[i + 1], data[i + 2]).hsv();
+        const newColor = chroma.hsv(
+            hsv[0], // hue
+            hsv[1] * saturation, // saturation
+            hsv[2] * brightness  // brightness
+        ).rgb();
+
+        data[i] = newColor[0];     // red
+        data[i + 1] = newColor[1]; // green
+        data[i + 2] = newColor[2]; // blue
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+}
+
+// Add event listeners for both controls
+document.getElementById('saturationValue').addEventListener('input', updatePalette);
+document.getElementById('brightnessValue').addEventListener('input', updatePalette); 
