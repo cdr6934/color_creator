@@ -15,7 +15,7 @@ function getComplementary(hex) {
     // Use chroma.js to handle color operations
     const color = chroma(hex);
     // Rotate hue by 180 degrees to get complementary color
-    const complementary = color.set('hsl.h', (color.get('hsl.h') + 180) % 360);
+    const complementary = color.set('hsl.h', (color.get('hsl.h') + 90) % 360);
     return complementary.hex().toUpperCase();
 }
 
@@ -32,15 +32,10 @@ function getColorScore(hsv, method) {
     
     switch (method) {
         case 'vibrant':
-            // Emphasize high saturation and brightness more strongly
-            // Square the values to make the difference more pronounced
-            const saturation = color.get('hsl.s');
-            const luminance = color.luminance();
-            return Math.pow(saturation, 2) * Math.pow(luminance, 2) * 2;
+            return color.saturate(2);
         case 'muted':
-            // Medium saturation, any brightness
-            const saturationDiff = Math.abs(color.get('hsl.s') - 0.5);
-            return (1 - saturationDiff) * color.luminance();
+        
+            return color.shade(0.75).saturate(2);
         case 'balanced':
             // Consider hue spacing, saturation, and luminance
             const hueDiff = Math.abs(0.5 - ((color.get('hsl.h') / 360) % 1));
@@ -214,23 +209,34 @@ function displayColors(colors) {
     const palette = document.getElementById('colorPalette');
     const strip = document.getElementById('colorStrip');
     const exportButton = document.getElementById('exportProcreate');
+    const hexContainer = document.getElementById('hexCodeContainer');
+    const hexList = document.getElementById('hexCodeList');
     
-    // Show export button when colors are displayed
+    // Show export button and hex container when colors are displayed
     exportButton.style.display = 'inline-block';
+    hexContainer.style.display = 'block';
     
     palette.innerHTML = '';
     strip.innerHTML = '';
+    hexList.innerHTML = '';
+    
+    // Create array-style string of hex codes
+    const hexCodesArray = colors.map(color => {
+        const validColor = color.startsWith('#') ? color : `#${color}`;
+        return `'${validColor}'`;
+    });
+    
+    // Add hex codes as copyable text
+    hexList.innerHTML = `[${hexCodesArray.join(',\n ')}]`;
     
     colors.forEach(color => {
         const colorBox = document.createElement('div');
         colorBox.className = 'color-box';
-        // Ensure color is properly formatted and applied
         const validColor = color.startsWith('#') ? color : `#${color}`;
         colorBox.style.backgroundColor = validColor;
         
         const colorInfo = document.createElement('div');
         colorInfo.className = 'color-info';
-        // Display the color hex code
         colorInfo.innerHTML = `<div>${validColor.toUpperCase()}</div>`;
         
         // Add click handler for copying
@@ -241,16 +247,35 @@ function displayColors(colors) {
         colorBox.appendChild(colorInfo);
         palette.appendChild(colorBox);
         
-        // Also ensure strip segments use valid color format
         const stripSegment = document.createElement('div');
         stripSegment.className = 'color-strip-segment';
         stripSegment.style.backgroundColor = validColor;
         strip.appendChild(stripSegment);
     });
     
+    // Add click handler for copying all hex codes
+    document.getElementById('copyHexCodes').addEventListener('click', () => {
+        copyHexCodesToClipboard(colors);
+    });
+    
     // Ensure the palette and strip are visible
     palette.style.display = 'flex';
     strip.style.display = 'flex';
+}
+
+// Add new function to copy all hex codes
+function copyHexCodesToClipboard(colors) {
+    const hexCodes = colors.map(color => {
+        return color.startsWith('#') ? color : `#${color}`;
+    });
+    const arrayString = `[${hexCodes.join(',\n ')}]`;
+    
+    navigator.clipboard.writeText(arrayString).then(() => {
+        showToast('Copied all hex codes to clipboard!');
+    }).catch(err => {
+        showToast('Failed to copy hex codes');
+        console.error('Failed to copy:', err);
+    });
 }
 
 async function downloadSwatchFile(data, filename) {

@@ -12,8 +12,9 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://YOUR-URL-HERE">
     <title>Color Palette Generator</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
@@ -78,6 +79,15 @@
     <div class="content-divider"></div>
 
     <div id="colorPalette" class="color-palette"></div>
+
+    <!-- Add hex code display container -->
+    <div id="hexCodeContainer" class="hex-code-container">
+        <div class="hex-code-header">
+            <h3>Color Hex Codes</h3>
+            <button id="copyHexCodes" class="button button-secondary">Copy All</button>
+        </div>
+        <div id="hexCodeList" class="hex-code-list"></div>
+    </div>
 
     <!-- Add toast container -->
     <div id="toast" class="toast"></div>
