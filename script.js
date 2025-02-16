@@ -1,33 +1,27 @@
-// Global variable to store the original image
 let originalImage = null;
+let adjustmentTimeout;
 
-function toHex(value) {
-    // Use chroma to handle the conversion and formatting
+ toHex = (value)  => {
     return chroma(value, 0, 0).hex().slice(1, 3).toUpperCase();
 }
 
-function rgbToHex(r, g, b) {
-    // Use chroma's built-in RGB to hex conversion
+ rgbToHex = ( r, g, b) => {
     return chroma(r, g, b).hex().toUpperCase();
 }
 
-function getComplementary(hex) {
-    // Use chroma.js to handle color operations
+ getComplementary = (hex) => {
     const color = chroma(hex);
-    // Rotate hue by 180 degrees to get complementary color
-    const complementary = color.set('hsl.h', (color.get('hsl.h') + 90) % 360);
-    return complementary.hex().toUpperCase();
+    const comp = color.set('hsl.h', (color.get('hsl.h') + 90) % 360);
+    return comp.hex().toUpperCase();
 }
 
-function rgbToHsv(r, g, b) {
-    // Use chroma.js for RGB to HSV conversion
+ rgbToHsv = (r, g, b) =>  {
     const color = chroma(r, g, b);
     const [h, s, v] = color.hsv();
-    return { h: h/360, s, v }; // Normalize h to 0-1 range to match existing code
+    return { h: h/360, s, v }; 
 }
 
-function getColorScore(hsv, method) {
-    // Convert HSV to chroma color object (note: hsv.h is in 0-1 range, needs to be 0-360)
+ getColorScore = (hsv, method) => {
     const color = chroma.hsv(hsv.h * 360, hsv.s, hsv.v);
     
     switch (method) {
@@ -37,10 +31,9 @@ function getColorScore(hsv, method) {
         
             return color.shade(0.75).saturate(2);
         case 'balanced':
-            // Consider hue spacing, saturation, and luminance
             const hueDiff = Math.abs(0.5 - ((color.get('hsl.h') / 360) % 1));
             return color.get('lch.c') * color.luminance() * (1 - hueDiff);
-        default: // dominant
+        default:
             return 1;
     }
 }
@@ -65,8 +58,7 @@ function adjustSaturation(canvas, saturation) {
 }
 
 function hsvToRgb(h, s, v) {
-    // Use chroma.js for HSV to RGB conversion
-    const color = chroma.hsv(h * 360, s, v); // Multiply h by 360 since chroma expects 0-360
+    const color = chroma.hsv(h * 360, s, v);
     const [r, g, b] = color.rgb();
     return {
         r: Math.round(r),
@@ -75,7 +67,6 @@ function hsvToRgb(h, s, v) {
     };
 }
 
-// Add these helper functions near the top of your file
 function showLoading() {
     const modal = document.getElementById('loadingModal');
     modal.style.display = 'flex';
@@ -86,8 +77,11 @@ function hideLoading() {
     modal.style.display = 'none';
 }
 
-// Modify getDominantColors to use the loading modal
 async function getDominantColors(image, numColors) {
+    if (!document.getElementById('saturationValue').value || !document.getElementById('brightnessValue').value) {
+        throw new Error('Saturation and brightness values are required');
+    }
+
     try {
         showLoading();
         const canvas = document.createElement('canvas');
@@ -98,12 +92,13 @@ async function getDominantColors(image, numColors) {
         ctx.drawImage(image, 0, 0);
         
         const saturation = parseInt(document.getElementById('saturationValue').value);
-        adjustSaturation(canvas, saturation);
+        const brightness = parseInt(document.getElementById('brightnessValue').value);
         
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        // Process image with both saturation and brightness
+        const processedCanvas = processImage(image);
+        
+        const imageData = processedCanvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
         const colorMap = new Map();
-        
-        // Reduce stride for more color samples
         const stride = Math.max(1, Math.floor((imageData.length / 4) / 20000));
         const method = document.getElementById('colorAlgorithm').value;
         
@@ -112,10 +107,8 @@ async function getDominantColors(image, numColors) {
             const g = imageData[i + 1];
             const b = imageData[i + 2];
             
-            // Use finer quantization for more color variety
             const color = chroma(r, g, b);
             const lab = color.lab();
-            // Reduce quantization step from 10 to 5 for more color variety
             const quantizedLab = lab.map(v => Math.round(v / 5) * 5);
             const quantizedColor = chroma.lab(...quantizedLab);
             
@@ -134,8 +127,6 @@ async function getDominantColors(image, numColors) {
                     score: getColorScore({ h: hsv[0]/360, s: hsv[1], v: hsv[2] }, method) * count
                 };
             });
-
-        // Modified selection process
         const selectedColors = [];
         const candidates = colorArray.sort((a, b) => b.score - a.score);
         
@@ -144,15 +135,14 @@ async function getDominantColors(image, numColors) {
             selectedColors.push(candidates[0]);
         }
         
-        // Select remaining colors based on maximum difference
+    
         while (selectedColors.length < numColors && candidates.length > 0) {
             let maxMinDistance = -1;
             let bestCandidateIndex = -1;
             
-            // For each remaining candidate
+    
             for (let i = 0; i < candidates.length; i++) {
                 const candidate = candidates[i];
-                // Find minimum distance to any selected color
                 let minDistance = Infinity;
                 
                 for (const selected of selectedColors) {
@@ -160,7 +150,7 @@ async function getDominantColors(image, numColors) {
                     minDistance = Math.min(minDistance, distance);
                 }
                 
-                // If this candidate has a larger minimum distance, it's more distinct
+                
                 if (minDistance > maxMinDistance) {
                     maxMinDistance = minDistance;
                     bestCandidateIndex = i;
@@ -191,13 +181,13 @@ async function getDominantColors(image, numColors) {
     }
 }
 
-// Add this helper function to calculate color distance
+
 function calculateColorDistance(color1, color2) {
-    // Convert hex to Lab colors using chroma.js
+
     const lab1 = chroma(color1).lab();
     const lab2 = chroma(color2).lab();
     
-    // Calculate Euclidean distance in Lab color space
+
     const deltaL = lab1[0] - lab2[0];
     const deltaA = lab1[1] - lab2[1];
     const deltaB = lab1[2] - lab2[2];
@@ -212,7 +202,7 @@ function displayColors(colors) {
     const hexContainer = document.getElementById('hexCodeContainer');
     const hexList = document.getElementById('hexCodeList');
     
-    // Show export button and hex container when colors are displayed
+
     exportButton.style.display = 'inline-block';
     hexContainer.style.display = 'block';
     
@@ -220,7 +210,7 @@ function displayColors(colors) {
     strip.innerHTML = '';
     hexList.innerHTML = '';
     
-    // Create array-style string of hex codes
+
     const hexCodesArray = colors.map(color => {
         const validColor = color.startsWith('#') ? color : `#${color}`;
         return `'${validColor}'`;
@@ -482,11 +472,10 @@ async function loadDefaultImage() {
     }
 }
 
-// Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     loadStateFromLocalStorage();
     
-    // Hide export button initially
+
     document.getElementById('exportProcreate').style.display = 'none';
 
     document.getElementById('exportProcreate').addEventListener('click', async () => {
@@ -600,35 +589,75 @@ function processImage(image) {
     canvas.width = image.width;
     canvas.height = image.height;
 
-    // Get saturation and brightness values
+
     const saturation = document.getElementById('saturationValue').value / 100;
     const brightness = document.getElementById('brightnessValue').value / 100;
 
-    // Draw original image
+    
     ctx.drawImage(image, 0, 0);
     
-    // Get image data
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
-    // Adjust saturation and brightness
+
     for (let i = 0; i < data.length; i += 4) {
         const hsv = chroma.rgb(data[i], data[i + 1], data[i + 2]).hsv();
         const newColor = chroma.hsv(
             hsv[0], // hue
-            hsv[1] * saturation, // saturation
-            hsv[2] * brightness  // brightness
+            hsv[1] * saturation, 
+            hsv[2] * brightness  
         ).rgb();
 
-        data[i] = newColor[0];     // red
-        data[i + 1] = newColor[1]; // green
-        data[i + 2] = newColor[2]; // blue
+        data[i] = newColor[0];    
+        data[i + 1] = newColor[1]; 
+        data[i + 2] = newColor[2]; 
     }
 
     ctx.putImageData(imageData, 0, 0);
     return canvas;
 }
 
-// Add event listeners for both controls
-document.getElementById('saturationValue').addEventListener('input', updatePalette);
-document.getElementById('brightnessValue').addEventListener('input', updatePalette); 
+async function updatePalette() {
+    if (!originalImage) return;
+    
+    try {
+        showLoading();
+        const numColors = parseInt(document.getElementById('numColors').value);
+        const colors = await getDominantColors(originalImage, numColors);
+        displayColors(colors);
+        saveStateToLocalStorage();
+    } finally {
+        hideLoading();
+    }
+}
+
+function showAdjustmentToast() {
+    const toast = document.getElementById('adjustmentToast');
+    toast.classList.add('show');
+}
+
+function hideAdjustmentToast() {
+    const toast = document.getElementById('adjustmentToast');
+    toast.classList.remove('show');
+}
+
+// Add these event listeners to your existing setup
+document.getElementById('brightnessValue').addEventListener('input', function(e) {
+    showAdjustmentToast();
+    clearTimeout(adjustmentTimeout);
+    
+    adjustmentTimeout = setTimeout(() => {
+        // Your existing brightness adjustment code here
+        hideAdjustmentToast();
+    }, 500);
+});
+
+document.getElementById('saturationValue').addEventListener('input', function(e) {
+    showAdjustmentToast();
+    clearTimeout(adjustmentTimeout);
+    
+    adjustmentTimeout = setTimeout(() => {
+        // Your existing saturation adjustment code here
+        hideAdjustmentToast();
+    }, 500);
+}); 

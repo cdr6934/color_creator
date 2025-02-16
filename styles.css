@@ -341,8 +341,6 @@ h1 {
     cursor: pointer;
 }
 
-
-
 .description {
     font-family: 'Inter', sans-serif;
     font-weight: 400;
@@ -404,6 +402,8 @@ h1 {
     100% { transform: rotate(360deg); }
 }
 
+
+/* Hex Code Container */
 .hex-code-container {
     margin: 2rem auto;
     max-width: 600px;
@@ -436,4 +436,21 @@ h1 {
 
 .hex-code:hover {
     background-color: #eee;
+}
+
+.adjustment-toast {
+    display: none;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}
+
+.adjustment-toast.show {
+    display: block;
 } 

@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
     <header class="header-stripe">
@@ -44,26 +45,26 @@
 
             <div class="input-group">
                 <label for="numColors">Number of colors</label>
-                <input type="number" id="numColors" value="5" min="1" max="30">
+                <input type="number" id="numColors" value="30" min="1" max="30">
             </div>
         </div>
         
         <div class="input-row">
             <div class="input-group" style="width: 100%;">
                 <label for="paletteName">Palette Name</label>
-                <input type="text" id="paletteName" value="My Color Palette">
+                <input type="text" id="paletteName" value="Monet Flowers">
             </div>
         </div>
         
         <div class="input-row">
             <div class="input-group">
                 <label for="saturationValue">Image Saturation (%)</label>
-                <input type="number" id="saturationValue" value="100" min="0" max="200" step="5">
+                <input type="number" id="saturationValue" value="100" min="0" max="200" step="5" required>
             </div>
             
             <div class="input-group">
                 <label for="brightnessValue">Image Brightness (%)</label>
-                <input type="number" id="brightnessValue" value="100" min="0" max="200" step="5">
+                <input type="number" id="brightnessValue" value="100" min="0" max="200" step="5" required>
             </div>
         </div>
     </div>
@@ -89,8 +90,8 @@
         <div id="hexCodeList" class="hex-code-list"></div>
     </div>
 
-    <!-- Add toast container -->
     <div id="toast" class="toast"></div>
+    <div id="adjustmentToast" class="toast adjustment-toast">Adjusting image...</div>
 
     <div class="bottom-actions">
         <button id="exportProcreate" class="button">Export</button>
@@ -109,11 +110,7 @@
                 <i class="fa-brands fa-instagram"></i>
             </a>
 
-            <a href="https://tumblr.com/generatecoll" target="_blank" class="social-icon">
-                <i class="fa-brands fa-tumblr"></i>
-            </a>
-
-            <a href="https://cbayes.com" target="_blank" class="social-icon">
+            <a href="https://generative.substack.com/" target="_blank" class="social-icon">
                 <i class="fa-solid fa-house"></i>
             </a>
         </div>
